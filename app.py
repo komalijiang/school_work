@@ -7,9 +7,9 @@ from bs4 import BeautifulSoup
 import jieba
 from collections import Counter
 from pyecharts import options as opts
-from pyecharts.charts import (
-    WordCloud, Bar, Line, Pie, Barh, Radar, Scatter, Funnel
-)
+# 替换原pyecharts导入代码，确保路径正确
+from pyecharts import options as opts
+from pyecharts.charts import WordCloud, Bar, Line, Pie, Barh, Radar, Scatter, Funnel
 from pyecharts.globals import ThemeType
 
 # 页面配置
