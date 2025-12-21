@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 import jieba
 from collections import Counter
 from pyecharts import options as opts
-# 修正导入：删除Barh，保留pyecharts 2.0.9支持的类
+# 兼容pyecharts 2.0.9的导入（删除Barh）
 from pyecharts.charts import WordCloud, Bar, Line, Pie, Radar, Scatter, Funnel
 from pyecharts.globals import ThemeType
 
@@ -208,7 +208,7 @@ if url:
                 st.subheader(f"📊 {selected_chart}")
                 chart_data = list(filtered_word_freq.items())
                 
-                # 词云图
+                # 词云图（修正scrolling为布尔值False）
                 if selected_chart == "词云图":
                     wordcloud = (
                         WordCloud(
@@ -241,10 +241,10 @@ if url:
                         wordcloud.render_embed(),
                         width=1000,
                         height=600,
-                        scrolling="no"
+                        scrolling=False  # 核心修正：字符串"no"→布尔值False
                     )
                 
-                # 柱状图
+                # 柱状图（修正scrolling）
                 elif selected_chart == "柱状图（词频前20）":
                     bar = (
                         Bar(
@@ -276,10 +276,10 @@ if url:
                         bar.render_embed(),
                         width=1000,
                         height=600,
-                        scrolling="no"
+                        scrolling=False  # 修正scrolling
                     )
                 
-                # 水平条形图（修正为Bar + reverse_axis()）
+                # 水平条形图（Bar+reverse_axis + 修正scrolling）
                 elif selected_chart == "水平条形图（词频前20）":
                     bar = (
                         Bar(
@@ -291,7 +291,7 @@ if url:
                         )
                         .add_xaxis(top20_words)
                         .add_yaxis("词频", top20_freqs, color="#4e79a7")
-                        .reverse_axis()  # 核心：反转坐标轴实现水平条形图
+                        .reverse_axis()  # 反转坐标轴实现水平条形图
                         .set_global_opts(
                             title_opts=opts.TitleOpts(
                                 title="词频前20水平条形图",
@@ -310,10 +310,10 @@ if url:
                         bar.render_embed(),
                         width=1000,
                         height=600,
-                        scrolling="no"
+                        scrolling=False  # 修正scrolling
                     )
                 
-                # 折线图
+                # 折线图（修正scrolling）
                 elif selected_chart == "折线图（词频前20）":
                     line = (
                         Line(
@@ -355,10 +355,10 @@ if url:
                         line.render_embed(),
                         width=1000,
                         height=600,
-                        scrolling="no"
+                        scrolling=False  # 修正scrolling
                     )
                 
-                # 饼图
+                # 饼图（修正scrolling）
                 elif selected_chart == "饼图（词频前20）":
                     pie = (
                         Pie(
@@ -402,10 +402,10 @@ if url:
                         pie.render_embed(),
                         width=1000,
                         height=600,
-                        scrolling="no"
+                        scrolling=False  # 修正scrolling
                     )
                 
-                # 雷达图
+                # 雷达图（修正scrolling）
                 elif selected_chart == "雷达图（词频前10）":
                     top10_word_freq = Counter(filtered_word_freq).most_common(10)
                     max_freq = max([item[1] for item in top10_word_freq])
@@ -447,10 +447,10 @@ if url:
                         radar.render_embed(),
                         width=1000,
                         height=600,
-                        scrolling="no"
+                        scrolling=False  # 修正scrolling
                     )
                 
-                # 散点图
+                # 散点图（修正scrolling）
                 elif selected_chart == "散点图（词频前20）":
                     scatter = (
                         Scatter(
@@ -494,10 +494,10 @@ if url:
                         scatter.render_embed(),
                         width=1000,
                         height=600,
-                        scrolling="no"
+                        scrolling=False  # 修正scrolling
                     )
                 
-                # 漏斗图
+                # 漏斗图（修正scrolling）
                 elif selected_chart == "漏斗图（词频前20）":
                     funnel = (
                         Funnel(
@@ -537,7 +537,7 @@ if url:
                         funnel.render_embed(),
                         width=1000,
                         height=600,
-                        scrolling="no"
+                        scrolling=False  # 修正scrolling
                     )
 
 else:
