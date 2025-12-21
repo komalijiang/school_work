@@ -1,15 +1,14 @@
 # 导入所需库
 import streamlit as st
-import streamlit.components.v1 as components  # 新增：用于嵌入HTML图表
+import streamlit.components.v1 as components  # 用于嵌入HTML图表
 import requests
 import pandas as pd
 from bs4 import BeautifulSoup
 import jieba
 from collections import Counter
 from pyecharts import options as opts
-# 替换原pyecharts导入代码，确保路径正确
-from pyecharts import options as opts
-from pyecharts.charts import WordCloud, Bar, Line, Pie, Barh, Radar, Scatter, Funnel
+# 修正导入：删除Barh，保留pyecharts 2.0.9支持的类
+from pyecharts.charts import WordCloud, Bar, Line, Pie, Radar, Scatter, Funnel
 from pyecharts.globals import ThemeType
 
 # 页面配置
@@ -22,7 +21,6 @@ st.set_page_config(
 # ---------------------- 功能函数定义 ----------------------
 def get_web_text(url):
     """抓取URL网页中的文章正文文本"""
-    # 模拟浏览器请求头，避免被反爬
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
@@ -30,39 +28,30 @@ def get_web_text(url):
     }
     
     try:
-        # 发送GET请求，设置超时
         response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()  # 抛出HTTP状态码异常
-        response.encoding = response.apparent_encoding  # 自动识别编码
+        response.raise_for_status()
+        response.encoding = response.apparent_encoding
         
-        # 使用BeautifulSoup解析网页
         soup = BeautifulSoup(response.text, "html.parser")
-        
-        # 优先提取正文区域（article标签、content类div、p标签）
         text_content = []
-        # 1. 优先获取article标签内的p标签文本
+        
+        # 优先提取正文区域
         article_tag = soup.find("article")
         if article_tag:
             p_tags = article_tag.find_all("p")
         else:
-            # 2. 查找包含content关键字的div标签
             content_div = soup.find("div", class_=lambda cls: cls and "content" in cls.lower())
-            if content_div:
-                p_tags = content_div.find_all("p")
-            else:
-                # 3. 提取所有p标签
-                p_tags = soup.find_all("p")
+            p_tags = content_div.find_all("p") if content_div else soup.find_all("p")
         
-        # 提取p标签文本，过滤空内容
+        # 过滤短文本
         for p in p_tags:
             p_text = p.get_text(strip=True)
-            if p_text and len(p_text) > 5:  # 过滤过短文本
+            if p_text and len(p_text) > 5:
                 text_content.append(p_text)
         
-        # 如果未提取到足够文本，提取网页纯文本
+        # 兜底提取纯文本
         if not text_content:
             full_text = soup.get_text(strip=True, separator="\n")
-            # 按换行分割，过滤短文本
             text_content = [line for line in full_text.split("\n") if len(line) > 10]
         
         return "\n".join(text_content)
@@ -72,7 +61,7 @@ def get_web_text(url):
         return None
 
 def load_stopwords():
-    """加载中文停用词表（过滤无意义词汇）"""
+    """加载中文停用词表"""
     stopwords = {
         "的", "地", "得", "我", "你", "他", "她", "它", "我们", "你们", "他们",
         "她们", "它们", "这", "那", "此", "彼", "在", "上", "下", "左", "右",
@@ -93,7 +82,7 @@ def load_stopwords():
 
 def word_processing(text, stopwords):
     """文本分词与词频统计"""
-    # 文本预处理：去除特殊字符、空格、换行
+    # 文本预处理：去除特殊字符
     clean_text = text.replace("\n", "").replace(" ", "").replace("\t", "")\
                      .replace("\\", "").replace("/", "").replace("：", "")\
                      .replace("；", "").replace("，", "").replace("。", "")\
@@ -131,9 +120,8 @@ with st.container():
         label_visibility="collapsed"
     )
 
-# 2. 侧边栏配置（图表筛选+低频词过滤）
+# 2. 侧边栏配置
 st.sidebar.title("⚙️ 可视化配置")
-# 图表类型选择（至少7种）
 chart_options = [
     "词云图",
     "柱状图（词频前20）",
@@ -157,7 +145,7 @@ min_freq = st.sidebar.slider(
     max_value=20,
     value=2,
     step=1,
-    help="仅保留词频大于等于该值的词汇，过滤无意义低频词"
+    help="仅保留词频大于等于该值的词汇"
 )
 
 st.sidebar.divider()
@@ -175,20 +163,18 @@ if url:
         article_text = get_web_text(url)
     
     if article_text:
-        # 展示抓取到的文本（部分预览）
+        # 文本预览
         with st.expander("📄 文章文本预览（点击展开/收起）", expanded=False):
             preview_text = article_text[:1000] + "..." if len(article_text) > 1000 else article_text
             st.text_area("文本内容", preview_text, height=200, disabled=True)
         
-        # 加载停用词
+        # 加载停用词 + 分词统计
         stopwords = load_stopwords()
-        
-        # 分词与词频统计
         with st.spinner("正在进行分词和词频统计..."):
             word_frequency = word_processing(article_text, stopwords)
         
         if not word_frequency:
-            st.warning("⚠️ 未提取到有效词汇，请检查URL是否为文章页面或尝试更换URL")
+            st.warning("⚠️ 未提取到有效词汇，请检查URL是否为文章页面")
         else:
             # 过滤低频词
             filtered_word_freq = {
@@ -197,14 +183,14 @@ if url:
             }
             
             if not filtered_word_freq:
-                st.warning(f"⚠️ 过滤后无有效词汇，请降低最小词频（当前最小词频：{min_freq}）")
+                st.warning(f"⚠️ 过滤后无有效词汇，请降低最小词频（当前：{min_freq}）")
             else:
-                # 获取词频前20的词汇
+                # 词频前20数据
                 top20_word_freq = Counter(filtered_word_freq).most_common(20)
                 top20_words = [item[0] for item in top20_word_freq]
                 top20_freqs = [item[1] for item in top20_word_freq]
                 
-                # 展示词频前20表格
+                # 展示词频表格
                 st.divider()
                 st.subheader("🏆 词频排名前20词汇")
                 top20_df = pd.DataFrame(
@@ -222,7 +208,7 @@ if url:
                 st.subheader(f"📊 {selected_chart}")
                 chart_data = list(filtered_word_freq.items())
                 
-                # 根据选择的图表生成对应可视化
+                # 词云图
                 if selected_chart == "词云图":
                     wordcloud = (
                         WordCloud(
@@ -251,7 +237,6 @@ if url:
                             )
                         )
                     )
-                    # 替换为HTML嵌入展示
                     components.html(
                         wordcloud.render_embed(),
                         width=1000,
@@ -259,6 +244,7 @@ if url:
                         scrolling="no"
                     )
                 
+                # 柱状图
                 elif selected_chart == "柱状图（词频前20）":
                     bar = (
                         Bar(
@@ -286,7 +272,6 @@ if url:
                             label_opts=opts.LabelOpts(is_show=True, position="top", font_size=10)
                         )
                     )
-                    # 替换为HTML嵌入展示
                     components.html(
                         bar.render_embed(),
                         width=1000,
@@ -294,9 +279,10 @@ if url:
                         scrolling="no"
                     )
                 
+                # 水平条形图（修正为Bar + reverse_axis()）
                 elif selected_chart == "水平条形图（词频前20）":
-                    barh = (
-                        Barh(
+                    bar = (
+                        Bar(
                             init_opts=opts.InitOpts(
                                 theme=ThemeType.LIGHT,
                                 width="1000px",
@@ -305,6 +291,7 @@ if url:
                         )
                         .add_xaxis(top20_words)
                         .add_yaxis("词频", top20_freqs, color="#4e79a7")
+                        .reverse_axis()  # 核心：反转坐标轴实现水平条形图
                         .set_global_opts(
                             title_opts=opts.TitleOpts(
                                 title="词频前20水平条形图",
@@ -319,14 +306,14 @@ if url:
                             label_opts=opts.LabelOpts(is_show=True, position="right", font_size=10)
                         )
                     )
-                    # 替换为HTML嵌入展示
                     components.html(
-                        barh.render_embed(),
+                        bar.render_embed(),
                         width=1000,
                         height=600,
                         scrolling="no"
                     )
                 
+                # 折线图
                 elif selected_chart == "折线图（词频前20）":
                     line = (
                         Line(
@@ -364,7 +351,6 @@ if url:
                             tooltip_opts=opts.TooltipOpts(trigger="axis")
                         )
                     )
-                    # 替换为HTML嵌入展示
                     components.html(
                         line.render_embed(),
                         width=1000,
@@ -372,6 +358,7 @@ if url:
                         scrolling="no"
                     )
                 
+                # 饼图
                 elif selected_chart == "饼图（词频前20）":
                     pie = (
                         Pie(
@@ -411,7 +398,6 @@ if url:
                             )
                         )
                     )
-                    # 替换为HTML嵌入展示
                     components.html(
                         pie.render_embed(),
                         width=1000,
@@ -419,12 +405,10 @@ if url:
                         scrolling="no"
                     )
                 
+                # 雷达图
                 elif selected_chart == "雷达图（词频前10）":
-                    # 雷达图取前10词汇，统一最大值范围
                     top10_word_freq = Counter(filtered_word_freq).most_common(10)
                     max_freq = max([item[1] for item in top10_word_freq])
-                    
-                    # 构造雷达图指标
                     radar_indicators = [
                         opts.RadarIndicatorItem(name=word, max_=max_freq)
                         for word, freq in top10_word_freq
@@ -459,7 +443,6 @@ if url:
                             tooltip_opts=opts.TooltipOpts(trigger="item")
                         )
                     )
-                    # 替换为HTML嵌入展示
                     components.html(
                         radar.render_embed(),
                         width=1000,
@@ -467,6 +450,7 @@ if url:
                         scrolling="no"
                     )
                 
+                # 散点图
                 elif selected_chart == "散点图（词频前20）":
                     scatter = (
                         Scatter(
@@ -480,7 +464,7 @@ if url:
                         .add_yaxis(
                             "词频",
                             top20_freqs,
-                            symbol_size=lambda x: x * 2,  # 词频越大，散点越大
+                            symbol_size=lambda x: x * 2,
                             color="#e15454"
                         )
                         .set_global_opts(
@@ -506,7 +490,6 @@ if url:
                             )
                         )
                     )
-                    # 替换为HTML嵌入展示
                     components.html(
                         scatter.render_embed(),
                         width=1000,
@@ -514,6 +497,7 @@ if url:
                         scrolling="no"
                     )
                 
+                # 漏斗图
                 elif selected_chart == "漏斗图（词频前20）":
                     funnel = (
                         Funnel(
@@ -526,7 +510,7 @@ if url:
                         .add(
                             series_name="词频层级",
                             data_pair=top20_word_freq,
-                            sort_="ascending",  # 升序排列，从上到下词频递增
+                            sort_="ascending",
                             gap=2
                         )
                         .set_global_opts(
@@ -549,7 +533,6 @@ if url:
                             )
                         )
                     )
-                    # 替换为HTML嵌入展示
                     components.html(
                         funnel.render_embed(),
                         width=1000,
