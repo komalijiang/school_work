@@ -8,7 +8,7 @@ import jieba
 from collections import Counter
 from pyecharts import options as opts
 # 兼容pyecharts 2.0.9的导入（删除Barh）
-from pyecharts.charts import WordCloud, Bar, Line, Radar, Scatter, Funnel
+from pyecharts.charts import WordCloud, Bar, Line, Pie, Radar, Scatter, Funnel
 from pyecharts.globals import ThemeType
 
 # 页面配置
@@ -125,7 +125,9 @@ st.sidebar.title("⚙️ 可视化配置")
 chart_options = [
     "词云图",
     "柱状图（词频前20）",
+    "水平条形图（词频前20）",
     "折线图（词频前20）",
+    "饼图（词频前20）",
     "雷达图（词频前10）",
     "散点图（词频前20）",
     "漏斗图（词频前20）"
@@ -277,6 +279,40 @@ if url:
                         scrolling=False
                     )
                 
+                # 水平条形图
+                elif selected_chart == "水平条形图（词频前20）":
+                    bar = (
+                        Bar(
+                            init_opts=opts.InitOpts(
+                                theme=ThemeType.LIGHT,
+                                width="1000px",
+                                height="600px"
+                            )
+                        )
+                        .add_xaxis(top20_words)
+                        .add_yaxis("词频", top20_freqs, color="#4e79a7")
+                        .reversal_axis()  # 反转坐标轴实现水平条形图
+                        .set_global_opts(
+                            title_opts=opts.TitleOpts(
+                                title="词频前20水平条形图",
+                                subtitle="词汇词频对比",
+                                title_textstyle_opts=opts.TextStyleOpts(font_size=20)
+                            ),
+                            xaxis_opts=opts.AxisOpts(name="词频", name_location="middle", name_gap=30),
+                            yaxis_opts=opts.AxisOpts(name="词汇", name_location="middle", name_gap=50),
+                            tooltip_opts=opts.TooltipOpts(trigger="axis")
+                        )
+                        .set_series_opts(
+                            label_opts=opts.LabelOpts(is_show=True, position="right", font_size=10)
+                        )
+                    )
+                    components.html(
+                        bar.render_embed(),
+                        width=1000,
+                        height=600,
+                        scrolling=False
+                    )
+                
                 # 折线图
                 elif selected_chart == "折线图（词频前20）":
                     line = (
@@ -317,6 +353,53 @@ if url:
                     )
                     components.html(
                         line.render_embed(),
+                        width=1000,
+                        height=600,
+                        scrolling=False
+                    )
+                
+                # 饼图
+                elif selected_chart == "饼图（词频前20）":
+                    pie = (
+                        Pie(
+                            init_opts=opts.InitOpts(
+                                theme=ThemeType.LIGHT,
+                                width="1000px",
+                                height="600px"
+                            )
+                        )
+                        .add(
+                            series_name="词频占比",
+                            data_pair=top20_word_freq,
+                            radius=["30%", "75%"],
+                            rosetype="radius"
+                        )
+                        .set_global_opts(
+                            title_opts=opts.TitleOpts(
+                                title="词频前20饼图（玫瑰图）",
+                                subtitle="词汇词频占比分布",
+                                title_textstyle_opts=opts.TextStyleOpts(font_size=20)
+                            ),
+                            legend_opts=opts.LegendOpts(
+                                orient="vertical",
+                                pos_left="left",
+                                max_width=150,
+                                textstyle_opts=opts.TextStyleOpts(font_size=10)
+                            )
+                        )
+                        .set_series_opts(
+                            tooltip_opts=opts.TooltipOpts(
+                                trigger="item",
+                                formatter="词汇：{b}<br/>词频：{c}<br/>占比：{d}%"
+                            ),
+                            label_opts=opts.LabelOpts(
+                                formatter="{b}: {d}%",
+                                font_size=10
+                            )
+                        )
+                    )
+                    components.html(
+                        pie.render_embed(),
                         width=1000,
                         height=600,
                         scrolling=False
